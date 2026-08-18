@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
 set -o errexit
 apt-get update && apt-get install -y ffmpeg
-pip install -r requirements.txt
+python -m pip install --upgrade pip
+python -m pip install --retries 10 --timeout 120 -r requirements.txt
