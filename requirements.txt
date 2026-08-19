@@ -1,3 +1,0 @@
-discord.py-self[voice]
-yt-dlp
-aiohttp
