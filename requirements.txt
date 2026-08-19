@@ -1,0 +1,4 @@
+discord.py-self[voice]
+yt-dlp
+aiohttp
+requests>=2.31.0
