@@ -132,14 +132,14 @@ def load_tokens() -> list[str]:
                 line = line.strip()
                 if line and not line.startswith("#"):
                     tokens.append(line)
-    for i in range(1, 11):
+    for i in range(1, 21):
         val = os.environ.get(f"DISCORD_TOKEN_{i}", "").strip()
         if val and val not in tokens:
             tokens.append(val)
     val = os.environ.get("DISCORD_TOKEN", "").strip()
     if val and val not in tokens:
         tokens.append(val)
-    return tokens[:10]
+    return tokens[:20]
 
 def save_token(token: str) -> None:
     lines: list[str] = []
@@ -765,8 +765,8 @@ HELP_VOICE = (
 
 HELP_SINGLE = (
     f"{BD}{UL}SINGLE LINE SPAM  [ ! ]{R}\n"
-    f"{YL}!start <n> [@mention...]    {GR}|{BL} porneste spam token n{R}\n"
-    f"{YL}!stop <n>                   {GR}|{BL} opreste token n{R}\n"
+    f"{YL}!start [@mention...]        {GR}|{BL} porneste automat tokenul propriu{R}\n"
+    f"{YL}!stop                       {GR}|{BL} opreste automat tokenul propriu{R}\n"
     f"{YL}!startall [@mention...]     {GR}|{BL} porneste toti tokenii{R}\n"
     f"{YL}!stopall                    {GR}|{BL} opreste toti{R}\n"
     f"{YL}!delay <n> <sec>            {GR}|{BL} delay token n{R}\n"
@@ -1364,8 +1364,8 @@ def make_bot(token: str, index: int, config: dict) -> discord.Client:
         if new_token in current:
             await send_ansi(ch, f"{YL}Token deja existent.{R}")
             return
-        if len(current) >= 10:
-            await send_ansi(ch, f"{YL}Limita de 10 tokenuri atinsa.{R}")
+        if len(current) >= 20:
+            await send_ansi(ch, f"{YL}Limita de 20 tokenuri atinsa.{R}")
             return
         save_token(new_token)
         await send_ansi(ch,
@@ -1535,23 +1535,26 @@ def make_bot(token: str, index: int, config: dict) -> discord.Client:
                 pass
 
         if cmd == "start":
-            if not rest_parts:
-                return await reply(f"{YL}Folosire: start <n> [@mention...]{R}")
-            n = _parse_n(rest_parts[0])
-            if n is None or n < 0 or n >= len(ALL_TOKENS):
-                return await reply(f"{RD}Token index invalid (1-{len(ALL_TOKENS)}).{R}")
             men = _mentions_str(mentions)
             await safe_del()
-            start_spam(stype, n, channel_id, men)
-            await reply(f"{GN}Spam pornit token {n+1}.{R}")
+            if rest_parts and _parse_n(rest_parts[0]) is not None:
+                n = _parse_n(rest_parts[0])
+                if n < 0 or n >= len(ALL_TOKENS):
+                    return await reply(f"{RD}Token index invalid (1-{len(ALL_TOKENS)}).{R}")
+                start_spam(stype, n, channel_id, men)
+                await reply(f"{GN}Spam pornit token {n+1}.{R}")
+            else:
+                start_spam(stype, index, channel_id, men)
+                await reply(f"{GN}Spam pornit automat pe tokenul propriu ({index+1}).{R}")
 
         elif cmd == "stop":
-            if not rest_parts:
-                return await reply(f"{YL}Folosire: stop <n>{R}")
-            n = _parse_n(rest_parts[0])
-            if n is None or n < 0 or n >= len(ALL_TOKENS):
+            n = _parse_n(rest_parts[0]) if rest_parts else None
+            if n is None:
+                stop_spam(stype, index)
+            elif n < 0 or n >= len(ALL_TOKENS):
                 return await reply(f"{RD}Token index invalid.{R}")
-            stop_spam(stype, n)
+            else:
+                stop_spam(stype, n)
             await safe_del()
 
         elif cmd == "startall":
@@ -1567,16 +1570,19 @@ def make_bot(token: str, index: int, config: dict) -> discord.Client:
             await safe_del()
 
         elif cmd == "delay":
-            if len(rest_parts) < 2:
-                return await reply(f"{YL}Folosire: delay <n> <sec>{R}")
-            n = _parse_n(rest_parts[0])
-            if n is None:
-                return await reply(f"{RD}Index invalid.{R}")
+            if not rest_parts:
+                return await reply(f"{YL}Folosire: delay <sec> sau delay <n> <sec>{R}")
             try:
-                d = float(rest_parts[1])
+                if len(rest_parts) >= 2 and _parse_n(rest_parts[0]) is not None:
+                    indexes = [_parse_n(rest_parts[0])]
+                    d = float(rest_parts[1])
+                else:
+                    indexes = [index]
+                    d = float(rest_parts[0])
             except ValueError:
                 return await reply(f"{RD}Delay invalid.{R}")
-            SPAM_DELAY[(stype, n)] = d
+            for n in indexes:
+                SPAM_DELAY[(stype, n)] = d
             await safe_del()
 
         elif cmd == "delayall":
@@ -1591,13 +1597,17 @@ def make_bot(token: str, index: int, config: dict) -> discord.Client:
             await safe_del()
 
         elif cmd == "typing":
-            if len(rest_parts) < 2:
-                return await reply(f"{YL}Folosire: typing <n> true/false{R}")
-            n = _parse_n(rest_parts[0])
-            if n is None:
-                return await reply(f"{RD}Index invalid.{R}")
-            val = rest_parts[1].lower() in ("true", "1", "yes")
-            SPAM_TYPING[(stype, n)] = val
+            if not rest_parts:
+                return await reply(f"{YL}Folosire: typing true/false sau typing <n> true/false{R}")
+            if len(rest_parts) >= 2 and _parse_n(rest_parts[0]) is not None:
+                indexes = [_parse_n(rest_parts[0])]
+                value = rest_parts[1]
+            else:
+                indexes = [index]
+                value = rest_parts[0]
+            val = value.lower() in ("true", "1", "yes")
+            for n in indexes:
+                SPAM_TYPING[(stype, n)] = val
             await safe_del()
 
         elif cmd == "typingall":
